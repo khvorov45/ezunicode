@@ -8,6 +8,7 @@
 typedef prb_Str   Str;
 typedef prb_Arena Arena;
 typedef int32_t   i32;
+typedef intptr_t  isize;
 
 function Str
 readFile(Arena* arena, Str path) {
@@ -15,6 +16,29 @@ readFile(Arena* arena, Str path) {
     assert(readres.success);
     Str result = prb_strFromBytes(readres.content);
     return result;
+}
+
+typedef struct StrBuilder {
+    Arena          arena;
+    prb_GrowingStr gstr;
+} StrBuilder;
+
+function StrBuilder*
+beginStr(Arena* arena, isize bytes) {
+    StrBuilder* builder = prb_arenaAllocStruct(arena, StrBuilder);
+    builder->arena = prb_createArenaFromArena(arena, bytes);
+    builder->gstr = prb_beginStr(&builder->arena);
+    return builder;
+}
+
+function void
+insertBetween(prb_GrowingStr* dest, prb_StrScanner* scanner, Str insertion, Str from, Str to) {
+    assert(prb_strScannerMove(scanner, (prb_StrFindSpec) {.pattern = from}, prb_StrScannerSide_AfterMatch));
+    prb_addStrSegment(dest, "%.*s%.*s", LIT(scanner->betweenLastMatches), LIT(scanner->match));
+    prb_addStrSegment(dest, "\n%.*s\n", LIT(insertion));
+
+    assert(prb_strScannerMove(scanner, (prb_StrFindSpec) {.pattern = to}, prb_StrScannerSide_AfterMatch));
+    prb_addStrSegment(dest, "%.*s", LIT(scanner->match));
 }
 
 int
@@ -27,42 +51,30 @@ main() {
     Str ezunicodeMainFilePath = prb_pathJoin(arena, rootDir, STR("ezunicode.h"));
     Str ezunicodeMainFileContent = readFile(arena, ezunicodeMainFilePath);
 
-    Str* ezunicodeNewFileContent = 0;
+    StrBuilder* ezunicodeNewContentBuilder = beginStr(arena, 20 * prb_MEGABYTE);
 
     // NOTE(khvorov) Stb truetype
     {
-        Str stbttFileContent = readFile(arena, prb_pathJoin(arena, srcDir, STR("stb_truetype.h")));
-        Str stbttheader = {};
-        {
-            prb_StrScanner scanner = prb_createStrScanner(stbttFileContent);
-            assert(prb_strScannerMove(&scanner, (prb_StrFindSpec) {.pattern = STR("#define __STB_INCLUDE_STB_TRUETYPE_H__")}, prb_StrScannerSide_AfterMatch));
-            assert(prb_strScannerMove(&scanner, (prb_StrFindSpec) {.pattern = STR("#endif // __STB_INCLUDE_STB_TRUETYPE_H__")}, prb_StrScannerSide_AfterMatch));
-            stbttheader = prb_strTrim(scanner.betweenLastMatches);
-        }
+        Str            stbttFileContent = readFile(arena, prb_pathJoin(arena, srcDir, STR("stb_truetype.h")));
+        prb_StrScanner stbttScanner = prb_createStrScanner(stbttFileContent);
 
-        prb_StrScanner scanner = prb_createStrScanner(ezunicodeMainFileContent);
-        assert(prb_strScannerMove(&scanner, (prb_StrFindSpec) {.pattern = STR("#ifdef ezu_USE_STB_TRUETYPE")}, prb_StrScannerSide_AfterMatch));
-        arrput(ezunicodeNewFileContent, scanner.betweenLastMatches);
-        arrput(ezunicodeNewFileContent, scanner.match);
+        assert(prb_strScannerMove(&stbttScanner, (prb_StrFindSpec) {.pattern = STR("#define __STB_INCLUDE_STB_TRUETYPE_H__")}, prb_StrScannerSide_AfterMatch));
+        assert(prb_strScannerMove(&stbttScanner, (prb_StrFindSpec) {.pattern = STR("#endif // __STB_INCLUDE_STB_TRUETYPE_H__")}, prb_StrScannerSide_AfterMatch));
+        Str stbttheader = prb_strTrim(stbttScanner.betweenLastMatches);
 
-        arrput(ezunicodeNewFileContent, STR("\n"));
-        arrput(ezunicodeNewFileContent, stbttheader);
-        arrput(ezunicodeNewFileContent, STR("\n"));
+        assert(prb_strScannerMove(&stbttScanner, (prb_StrFindSpec) {.pattern = STR("#ifdef STB_TRUETYPE_IMPLEMENTATION")}, prb_StrScannerSide_AfterMatch));
+        assert(prb_strScannerMove(&stbttScanner, (prb_StrFindSpec) {.pattern = STR("#endif // STB_TRUETYPE_IMPLEMENTATION")}, prb_StrScannerSide_AfterMatch));
+        Str stbttbody = prb_strTrim(stbttScanner.betweenLastMatches);
 
-        assert(prb_strScannerMove(&scanner, (prb_StrFindSpec) {.pattern = STR("#endif  // ezu_USE_STB_TRUETYPE")}, prb_StrScannerSide_AfterMatch));
-        arrput(ezunicodeNewFileContent, scanner.match);
-        arrput(ezunicodeNewFileContent, scanner.afterMatch);
+        prb_StrScanner mainScanner = prb_createStrScanner(ezunicodeMainFileContent);
+        insertBetween(&ezunicodeNewContentBuilder->gstr, &mainScanner, stbttheader, STR("#ifdef ezu_USE_STB_TRUETYPE"), STR("#endif  // ezu_USE_STB_TRUETYPE"));
+        insertBetween(&ezunicodeNewContentBuilder->gstr, &mainScanner, stbttbody, STR("#ifdef ezu_USE_STB_TRUETYPE"), STR("#endif  // ezu_USE_STB_TRUETYPE"));
+
+        prb_addStrSegment(&ezunicodeNewContentBuilder->gstr, "%.*s", LIT(mainScanner.afterMatch));
     }
 
-    {
-        prb_GrowingStr gstr = prb_beginStr(arena);
-        for (i32 ind = 0; ind < arrlen(ezunicodeNewFileContent); ind++) {
-            Str piece = ezunicodeNewFileContent[ind];
-            prb_addStrSegment(&gstr, "%.*s", LIT(piece));
-        }
-        Str str = prb_endStr(&gstr);
-        assert(prb_writeEntireFile(arena, ezunicodeMainFilePath, str.ptr, str.len));
-    }
+    Str str = prb_endStr(&ezunicodeNewContentBuilder->gstr);
+    assert(prb_writeEntireFile(arena, ezunicodeMainFilePath, str.ptr, str.len));
 
     return 0;
 }
