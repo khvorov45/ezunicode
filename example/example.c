@@ -2,11 +2,6 @@
 #include <stdbool.h>
 #include <stdalign.h>
 
-#define ezu_IMPLEMENTATION
-#define ezu_PUBLICAPI static
-#define ezu_USE_STB_TRUETYPE
-#include "../ezunicode.h"
-
 #if defined(WIN32) || defined(_WIN32)
 #define PLATFORM_WINDOWS 1
 #elif (defined(linux) || defined(__linux) || defined(__linux__))
@@ -33,6 +28,13 @@
 #define debugbreak() __builtin_debugtrap()
 #define assert(condition) do { if (condition) {} else { debugbreak(); } } while (0)
 // clang-format on
+
+#define ezu_IMPLEMENTATION
+#define ezu_PUBLICAPI static
+#define ezu_USE_STB_TRUETYPE
+#define ezu_INCLUDE_FONT_DATA
+#define ezu_assert(x) assert(x)
+#include "../ezunicode.h"
 
 typedef int32_t   i32;
 typedef uint32_t  u32;
@@ -233,7 +235,7 @@ main() {
             }
         }
 
-        ezu_drawUnicode(imageBuffer);
+        ezu_drawUnicode(imageBuffer, windowWidth, windowHeight);
 
         XPutImage(
             x11display,
