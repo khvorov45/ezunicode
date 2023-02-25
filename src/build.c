@@ -67,6 +67,9 @@ main() {
         Str stbttbody = prb_strTrim(stbttScanner.betweenLastMatches);
 
         prb_StrScanner mainScanner = prb_createStrScanner(ezunicodeMainFileContent);
+        // NOTE(khvorov) Skip the integration section
+        assert(prb_strScannerMove(&mainScanner, (prb_StrFindSpec) {.pattern = STR("#endif  // ezu_USE_STB_TRUETYPE")}, prb_StrScannerSide_AfterMatch));
+        prb_addStrSegment(&ezunicodeNewContentBuilder->gstr, "%.*s%.*s", LIT(mainScanner.beforeMatch), LIT(mainScanner.match));
         insertBetween(&ezunicodeNewContentBuilder->gstr, &mainScanner, stbttheader, STR("#ifdef ezu_USE_STB_TRUETYPE"), STR("#endif  // ezu_USE_STB_TRUETYPE"));
         insertBetween(&ezunicodeNewContentBuilder->gstr, &mainScanner, stbttbody, STR("#ifdef ezu_USE_STB_TRUETYPE"), STR("#endif  // ezu_USE_STB_TRUETYPE"));
 

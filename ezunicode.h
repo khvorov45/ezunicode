@@ -11,8 +11,17 @@
 #ifndef ezu_HEADER_FILE
 #define ezu_HEADER_FILE
 
+// TODO(khvorov) Remove
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
 #ifndef ezu_PUBLICAPI
 #define ezu_PUBLICAPI
+#endif
+
+#ifndef ezu_assert
+#define ezu_assert(x)
 #endif
 
 //
@@ -24,6 +33,30 @@ ezu_PUBLICAPI void ezu_drawUnicode(uint32_t* imageBuffer);
 //
 // SECTION stb truetype (header)
 //
+
+#ifdef ezu_USE_STB_TRUETYPE
+typedef uint8_t  stbtt_uint8;
+typedef int8_t   stbtt_int8;
+typedef uint16_t stbtt_uint16;
+typedef int16_t  stbtt_int16;
+typedef uint32_t stbtt_uint32;
+typedef int32_t  stbtt_int32;
+
+#define STBTT_ifloor(x) ((int)floor(x))
+#define STBTT_iceil(x) ((int)ceil(x))
+#define STBTT_sqrt(x) sqrt(x)
+#define STBTT_pow(x, y) pow(x, y)
+#define STBTT_fmod(x, y) fmod(x, y)
+#define STBTT_cos(x) cos(x)
+#define STBTT_acos(x) acos(x)
+#define STBTT_fabs(x) fabs(x)
+#define STBTT_malloc(x, u) ((void)(u), malloc(x))
+#define STBTT_free(x, u) ((void)(u), free(x))
+#define STBTT_assert(x) ezu_assert(x)
+#define STBTT_strlen(x) strlen(x)
+#define STBTT_memcpy memcpy
+#define STBTT_memset memset
+#endif  // ezu_USE_STB_TRUETYPE
 
 // clang-format off
 #ifdef ezu_USE_STB_TRUETYPE

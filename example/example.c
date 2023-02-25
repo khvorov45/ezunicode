@@ -4,6 +4,7 @@
 
 #define ezu_IMPLEMENTATION
 #define ezu_PUBLICAPI static
+#define ezu_USE_STB_TRUETYPE
 #include "../ezunicode.h"
 
 #if defined(WIN32) || defined(_WIN32)
@@ -46,24 +47,24 @@ typedef float     f32;
 // SECTION Memory
 //
 
-function void
-memcpy(void* dest, void* src, isize len) {
-    for (isize ind = 0; ind < len; ind++) {
-        ((u8*)dest)[ind] = ((u8*)src)[ind];
-    }
-}
+// function void
+// memcpy(void* dest, void* src, isize len) {
+//     for (isize ind = 0; ind < len; ind++) {
+//         ((u8*)dest)[ind] = ((u8*)src)[ind];
+//     }
+// }
 
-function bool
-memeq(const void* ptr1, const void* ptr2, isize len) {
-    bool result = true;
-    for (isize ind = 0; ind < len; ind++) {
-        if (((u8*)ptr1)[ind] != ((u8*)ptr2)[ind]) {
-            result = false;
-            break;
-        }
-    }
-    return result;
-}
+// function bool
+// memeq(const void* ptr1, const void* ptr2, isize len) {
+//     bool result = true;
+//     for (isize ind = 0; ind < len; ind++) {
+//         if (((u8*)ptr1)[ind] != ((u8*)ptr2)[ind]) {
+//             result = false;
+//             break;
+//         }
+//     }
+//     return result;
+// }
 
 typedef struct Arena {
     void* base;
@@ -123,31 +124,31 @@ arenaAllocAndZero(Arena* arena, isize size, isize align) {
     return result;
 }
 
-function Arena
-createArenaFromArena(Arena* parent, isize bytes) {
-    Arena arena = {
-        .base = arenaFreePtr(parent),
-        .size = bytes,
-        .used = 0,
-        .tempCount = 0,
-    };
-    arenaChangeUsed(parent, bytes);
-    return arena;
-}
+// function Arena
+// createArenaFromArena(Arena* parent, isize bytes) {
+//     Arena arena = {
+//         .base = arenaFreePtr(parent),
+//         .size = bytes,
+//         .used = 0,
+//         .tempCount = 0,
+//     };
+//     arenaChangeUsed(parent, bytes);
+//     return arena;
+// }
 
-function TempMemory
-beginTempMemory(Arena* arena) {
-    TempMemory temp = {.arena = arena, .usedAtBegin = arena->used, .tempCountAtBegin = arena->tempCount};
-    arena->tempCount += 1;
-    return temp;
-}
+// function TempMemory
+// beginTempMemory(Arena* arena) {
+//     TempMemory temp = {.arena = arena, .usedAtBegin = arena->used, .tempCountAtBegin = arena->tempCount};
+//     arena->tempCount += 1;
+//     return temp;
+// }
 
-function void
-endTempMemory(TempMemory temp) {
-    assert(temp.arena->tempCount == temp.tempCountAtBegin + 1);
-    temp.arena->used = temp.usedAtBegin;
-    temp.arena->tempCount -= 1;
-}
+// function void
+// endTempMemory(TempMemory temp) {
+//     assert(temp.arena->tempCount == temp.tempCountAtBegin + 1);
+//     temp.arena->used = temp.usedAtBegin;
+//     temp.arena->tempCount -= 1;
+// }
 
 typedef struct Bytes {
     u8*   data;
