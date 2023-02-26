@@ -24,11 +24,20 @@
 #define ezu_assert(x)
 #endif
 
+#define ezu_min(a, b) (((a) < (b)) ? (a) : (b))
+
+typedef struct ezu_Rect2i {
+    intptr_t left;
+    intptr_t top;
+    intptr_t width;
+    intptr_t height;
+} ezu_Rect2i;
+
 //
 // SECTION Core (header)
 //
 
-ezu_PUBLICAPI void ezu_drawUnicode(uint32_t* imageBuffer, intptr_t width, intptr_t height);
+ezu_PUBLICAPI ezu_Rect2i ezu_drawUnicode(uint8_t* imageBuffer, intptr_t imageWidth, intptr_t imageHeight);
 
 //
 // SECTION stb truetype (header)
@@ -56,10 +65,7 @@ typedef int32_t  stbtt_int32;
 #define STBTT_strlen(x) strlen(x)
 #define STBTT_memcpy memcpy
 #define STBTT_memset memset
-#endif  // ezu_USE_STB_TRUETYPE
 
-// clang-format off
-#ifdef ezu_USE_STB_TRUETYPE
 #ifdef STBTT_STATIC
 #define STBTT_DEF static
 #else
@@ -655,7 +661,6 @@ enum { // languageID for STBTT_PLATFORM_ID_MAC
 }
 #endif
 #endif  // ezu_USE_STB_TRUETYPE
-// clang-format on
 
 #endif  // ezu_HEADER_FILE
 
@@ -19211,22 +19216,24 @@ uint8_t ezu_FontData_NotoSansRegular[] = {
 // SECTION Core (implementation)
 //
 
-ezu_PUBLICAPI void
-ezu_drawUnicode(uint32_t* imageBuffer, intptr_t width, intptr_t height) {
+ezu_PUBLICAPI ezu_Rect2i
+ezu_drawUnicode(uint8_t* imageBuffer, intptr_t imageWidth, intptr_t imageHeight) {
     stbtt_fontinfo font = {};
     ezu_assert(stbtt_InitFont(&font, ezu_FontData_NotoSansRegular, 0));
     float scale = stbtt_ScaleForPixelHeight(&font, 200);
-    int x0, y0, x1, y1;
+    int   x0, y0, x1, y1;
     stbtt_GetCodepointBitmapBox(&font, 'a', scale, scale, &x0, &y0, &x1, &y1);
-    // TODO(khvorov) This draws grayscale bytes, we have u32s
-    stbtt_MakeCodepointBitmap(&font, (unsigned char*)imageBuffer, x1 - x0, y1 - y0, width * 4, scale, scale, 'a');
+    intptr_t glyphWidth = ezu_min(x1 - x0, imageWidth);
+    intptr_t glyphHeight = ezu_min(y1 - y0, imageHeight);
+    stbtt_MakeCodepointBitmap(&font, (unsigned char*)imageBuffer, glyphWidth, glyphHeight, imageWidth, scale, scale, 'a');
+    ezu_Rect2i result = {0, 0, glyphWidth, glyphHeight};
+    return result;
 }
 
 //
 // SECTION stb truetype (implementation)
 //
 
-// clang-format off
 #ifdef ezu_USE_STB_TRUETYPE
 #ifndef STBTT_MAX_OVERSAMPLE
 #define STBTT_MAX_OVERSAMPLE   8
@@ -23091,7 +23098,6 @@ STBTT_DEF int stbtt_CompareUTF8toUTF16_bigendian(const char *s1, int len1, const
 #pragma GCC diagnostic pop
 #endif
 #endif  // ezu_USE_STB_TRUETYPE
-// clang-format on
 
 #endif  // ezu_IMPLEMENTATION
 

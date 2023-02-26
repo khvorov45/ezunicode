@@ -19,57 +19,31 @@ readFile(Arena* arena, Str path) {
     return result;
 }
 
-function void
-insertBetween(prb_GrowingStr* dest, prb_StrScanner* scanner, Str insertion, Str from, Str to) {
-    assert(prb_strScannerMove(scanner, (prb_StrFindSpec) {.pattern = from}, prb_StrScannerSide_AfterMatch));
-    prb_addStrSegment(dest, "%.*s%.*s", LIT(scanner->betweenLastMatches), LIT(scanner->match));
-    prb_addStrSegment(dest, "\n%.*s\n", LIT(insertion));
-
-    assert(prb_strScannerMove(scanner, (prb_StrFindSpec) {.pattern = to}, prb_StrScannerSide_AfterMatch));
-    prb_addStrSegment(dest, "%.*s", LIT(scanner->match));
-}
-
-function void
-skipTo(prb_GrowingStr* dest, prb_StrScanner* scanner, Str pattern) {
-    assert(prb_strScannerMove(scanner, (prb_StrFindSpec) {.pattern = pattern}, prb_StrScannerSide_AfterMatch));
-    prb_addStrSegment(dest, "%.*s%.*s", LIT(scanner->beforeMatch), LIT(scanner->match));
-}
-
 int
 main() {
     Arena  arena_ = prb_createArenaFromVmem(1 * prb_GIGABYTE);
     Arena* arena = &arena_;
 
     Str srcDir = prb_getParentDir(arena, STR(__FILE__));
-    Str rootDir = prb_getParentDir(arena, srcDir);
-    Str ezunicodeMainFilePath = prb_pathJoin(arena, rootDir, STR("ezunicode.h"));
-    Str ezunicodeMainFileContent = readFile(arena, ezunicodeMainFilePath);
 
     // NOTE(khvorov) Stb truetype
+    Str stbttheader = {};
+    Str stbttbody = {};    
     {
         Str            stbttFileContent = readFile(arena, prb_pathJoin(arena, srcDir, STR("stb_truetype.h")));
         prb_StrScanner stbttScanner = prb_createStrScanner(stbttFileContent);
 
         assert(prb_strScannerMove(&stbttScanner, (prb_StrFindSpec) {.pattern = STR("#define __STB_INCLUDE_STB_TRUETYPE_H__")}, prb_StrScannerSide_AfterMatch));
         assert(prb_strScannerMove(&stbttScanner, (prb_StrFindSpec) {.pattern = STR("#endif // __STB_INCLUDE_STB_TRUETYPE_H__")}, prb_StrScannerSide_AfterMatch));
-        Str stbttheader = prb_strTrim(stbttScanner.betweenLastMatches);
+        stbttheader = prb_strTrim(stbttScanner.betweenLastMatches);
 
         assert(prb_strScannerMove(&stbttScanner, (prb_StrFindSpec) {.pattern = STR("#ifdef STB_TRUETYPE_IMPLEMENTATION")}, prb_StrScannerSide_AfterMatch));
         assert(prb_strScannerMove(&stbttScanner, (prb_StrFindSpec) {.pattern = STR("#endif // STB_TRUETYPE_IMPLEMENTATION")}, prb_StrScannerSide_AfterMatch));
-        Str stbttbody = prb_strTrim(stbttScanner.betweenLastMatches);
-
-        prb_GrowingStr gstr = prb_beginStr(arena);
-        prb_StrScanner mainScanner = prb_createStrScanner(ezunicodeMainFileContent);
-        // NOTE(khvorov) Skip the integration section
-        skipTo(&gstr, &mainScanner, STR("#endif  // ezu_USE_STB_TRUETYPE"));
-        insertBetween(&gstr, &mainScanner, stbttheader, STR("#ifdef ezu_USE_STB_TRUETYPE"), STR("#endif  // ezu_USE_STB_TRUETYPE"));
-        insertBetween(&gstr, &mainScanner, stbttbody, STR("#ifdef ezu_USE_STB_TRUETYPE"), STR("#endif  // ezu_USE_STB_TRUETYPE"));
-
-        prb_addStrSegment(&gstr, "%.*s", LIT(mainScanner.afterMatch));
-        ezunicodeMainFileContent = prb_endStr(&gstr);
+        stbttbody = prb_strTrim(stbttScanner.betweenLastMatches);
     }
 
     // NOTE(khvorov) Font data
+    Str fontData = {};
     {
         Str* allTTFFileContents = 0;
         Str* allFontIds = 0;
@@ -99,20 +73,6 @@ main() {
 
         assert(arrlen(allTTFFileContents) == arrlen(allFontIds));
 
-        // Str enumContent = {};
-        // {
-        //     prb_GrowingStr gstr = prb_beginStr(arena);
-        //     for (i32 ind = 0; ind < arrlen(allFontIds); ind++) {
-        //         Str fontid = allFontIds[ind];
-        //         prb_addStrSegment(&gstr, "    ezu_FontID_%.*s,", LIT(fontid));
-        //         if (ind < arrlen(allFontIds) - 1) {
-        //             prb_addStrSegment(&gstr, "\n");
-        //         }
-        //     }
-        //     enumContent = prb_endStr(&gstr);
-        // }
-
-        Str fontData = {};
         {
             prb_GrowingStr gstr = prb_beginStr(arena);
             for (i32 ind = 0; ind < arrlen(allFontIds); ind++) {
@@ -135,16 +95,59 @@ main() {
             }
             fontData = prb_endStr(&gstr);
         }
-
-        prb_GrowingStr gstr = prb_beginStr(arena);
-        prb_StrScanner  mainScanner = prb_createStrScanner(ezunicodeMainFileContent);
-        insertBetween(&gstr, &mainScanner, fontData, STR("#ifdef ezu_INCLUDE_FONT_DATA"), STR("#endif  // ezu_INCLUDE_FONT_DATA"));
-
-        prb_addStrSegment(&gstr, "%.*s", LIT(mainScanner.afterMatch));
-        ezunicodeMainFileContent = prb_endStr(&gstr);
     }
 
-    assert(prb_writeEntireFile(arena, ezunicodeMainFilePath, ezunicodeMainFileContent.ptr, ezunicodeMainFileContent.len));
+    Str ezunicodeMainFilePath = prb_pathJoin(arena, srcDir, STR("ezunicode.h"));
+    Str ezunicodeMainFileContent = readFile(arena, ezunicodeMainFilePath);
+
+    // NOTE(khvorov) Public functions
+    Str coreheader = {};
+    {
+        prb_GrowingStr gstr = prb_beginStr(arena);
+        prb_StrScanner scanner = prb_createStrScanner(ezunicodeMainFileContent);
+        assert(prb_strScannerMove(&scanner, (prb_StrFindSpec) {.pattern = STR("ezu_PUBLICAPI")}, prb_StrScannerSide_AfterMatch));
+        assert(prb_strScannerMove(&scanner, (prb_StrFindSpec) {.pattern = STR("ezu_PUBLICAPI")}, prb_StrScannerSide_AfterMatch));
+        while (prb_strScannerMove(&scanner, (prb_StrFindSpec) {.pattern = STR("ezu_PUBLICAPI")}, prb_StrScannerSide_AfterMatch)) {
+            prb_addStrSegment(&gstr, "%.*s", LIT(scanner.match));
+            assert(prb_strScannerMove(&scanner, (prb_StrFindSpec) {.mode = prb_StrFindMode_LineBreak}, prb_StrScannerSide_AfterMatch));
+            prb_addStrSegment(&gstr, "%.*s", LIT(scanner.betweenLastMatches));
+            assert(prb_strScannerMove(&scanner, (prb_StrFindSpec) {.pattern = STR(" {")}, prb_StrScannerSide_AfterMatch));
+            prb_addStrSegment(&gstr, " %.*s;\n", LIT(scanner.betweenLastMatches));
+        }
+        coreheader = prb_endStr(&gstr);
+    }
+
+    // TODO(khvorov) Align header decls?
+
+    // NOTE(khvorov) New content
+    Str outContent = {};
+    {
+        prb_GrowingStr gstr = prb_beginStr(arena);
+        prb_StrScanner scanner = prb_createStrScanner(ezunicodeMainFileContent);
+        while (prb_strScannerMove(&scanner, (prb_StrFindSpec) {.pattern = STR("// @")}, prb_StrScannerSide_AfterMatch)) {
+            prb_addStrSegment(&gstr, "%.*s", LIT(scanner.betweenLastMatches));
+            assert(prb_strScannerMove(&scanner, (prb_StrFindSpec) {.mode = prb_StrFindMode_LineBreak, .alwaysMatchEnd = true}, prb_StrScannerSide_AfterMatch));
+            Str line = scanner.betweenLastMatches;
+
+            if (prb_streq(line, STR("stbttheader"))) {
+                prb_addStrSegment(&gstr, "%.*s\n", LIT(stbttheader));
+            } else if (prb_streq(line, STR("stbttbody"))) {
+                prb_addStrSegment(&gstr, "%.*s\n", LIT(stbttbody));
+            } else if (prb_streq(line, STR("fontdata"))) {
+                prb_addStrSegment(&gstr, "%.*s\n", LIT(fontData));
+            } else if (prb_streq(line, STR("coreheader"))) {
+                prb_addStrSegment(&gstr, "%.*s", LIT(coreheader));
+            } else {
+                assert(!"unrecognized");
+            }
+        }
+        prb_addStrSegment(&gstr, "%.*s", LIT(scanner.afterMatch));
+        outContent = prb_endStr(&gstr);
+    }
+
+    Str rootDir = prb_getParentDir(arena, srcDir);
+    Str ezunicodeOutPath = prb_pathJoin(arena, rootDir, STR("ezunicode.h"));
+    assert(prb_writeEntireFile(arena, ezunicodeOutPath, outContent.ptr, outContent.len));
 
     return 0;
 }

@@ -189,6 +189,10 @@ main() {
     u32*    imageBuffer = arenaAllocArray(arena, u32, windowWidth * windowHeight);
     x11image->data = (char*)imageBuffer;
 
+    isize glyphAlphaBufferWidth = 500;
+    isize glyphAlphaBufferHeight = 500;
+    u8*   glyphAlphaBuffer = arenaAllocArray(arena, u8, glyphAlphaBufferWidth * glyphAlphaBufferHeight);
+
     Window x11window = XCreateWindow(
         x11display,
         DefaultRootWindow(x11display),
@@ -235,7 +239,16 @@ main() {
             }
         }
 
-        ezu_drawUnicode(imageBuffer, windowWidth, windowHeight);
+        ezu_Rect2i glyphRect = ezu_drawUnicode(glyphAlphaBuffer, glyphAlphaBufferWidth, glyphAlphaBufferHeight);
+        for (isize glyphY = glyphRect.top; glyphY < glyphRect.top + glyphRect.height; glyphY++) {
+            for (isize glyphX = glyphRect.left; glyphX < glyphRect.left + glyphRect.width; glyphX++) {
+                isize glyphIndex = glyphY * glyphAlphaBufferWidth + glyphX;
+                u8    glyphAlpha = glyphAlphaBuffer[glyphIndex];
+
+                isize imageIndex = glyphY * windowWidth + glyphX;
+                imageBuffer[imageIndex] = (glyphAlpha << 16) | (glyphAlpha << 8) | (glyphAlpha);
+            }
+        }
 
         XPutImage(
             x11display,
