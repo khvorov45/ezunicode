@@ -221,6 +221,8 @@ main() {
 
     XMapWindow(x11display, x11window);
 
+    ezu_Context ezuctx = ezu_createContext();
+
     isize cursorX = 0;
     isize cursorY = 0;
     for (;;) {
@@ -253,7 +255,7 @@ main() {
 
         ezu_Rect2i glyphAlphaBufferRect = {};
         {
-            ezu_Rect2i full = ezu_drawUnicode(glyphAlphaBuffer, glyphAlphaBufferWidth, glyphAlphaBufferHeight);
+            ezu_Rect2i full = ezu_drawGlyphUtf32(&ezuctx, glyphAlphaBuffer, glyphAlphaBufferWidth, glyphAlphaBufferHeight, '!');
             ezu_Rect2i image = {-glyphImageLeft, -glyphImageTop, windowWidth, windowHeight};
             glyphAlphaBufferRect = ezu_clipRectToRect(full, image);
         }
