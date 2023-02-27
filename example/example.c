@@ -225,6 +225,7 @@ main() {
 
     isize cursorX = 0;
     isize cursorY = 0;
+    u32   glyphToDraw = 'a';
     for (;;) {
         isize processedEventCount = 0;
         for (;;) {
@@ -240,10 +241,11 @@ main() {
 
                 switch (event.type) {
                     case ClientMessage: _exit(0); break;
-                    case MotionNotify:  {
+                    case MotionNotify: {
                         cursorX = event.xmotion.x;
                         cursorY = event.xmotion.y;
                     } break;
+                    case ButtonPress: glyphToDraw++; break;
                 }
             }
         }
@@ -255,7 +257,7 @@ main() {
 
         ezu_Rect2i glyphAlphaBufferRect = {};
         {
-            ezu_Rect2i full = ezu_drawGlyphUtf32(&ezuctx, glyphAlphaBuffer, glyphAlphaBufferWidth, glyphAlphaBufferHeight, '!');
+            ezu_Rect2i full = ezu_drawGlyphUtf32(&ezuctx, glyphAlphaBuffer, glyphAlphaBufferWidth, glyphAlphaBufferHeight, glyphToDraw);
             ezu_Rect2i image = {-glyphImageLeft, -glyphImageTop, windowWidth, windowHeight};
             glyphAlphaBufferRect = ezu_clipRectToRect(full, image);
         }
@@ -263,7 +265,7 @@ main() {
             for (isize glyphX = glyphAlphaBufferRect.left; glyphX < glyphAlphaBufferRect.left + glyphAlphaBufferRect.width; glyphX++) {
                 isize glyphIndex = glyphY * glyphAlphaBufferWidth + glyphX;
                 assert(glyphIndex >= 0 && glyphIndex < glyphAlphaBufferWidth * glyphAlphaBufferHeight);
-                u8    glyphAlpha = glyphAlphaBuffer[glyphIndex];
+                u8 glyphAlpha = glyphAlphaBuffer[glyphIndex];
 
                 isize imageIndex = (glyphImageTop + glyphY) * windowWidth + (glyphImageLeft + glyphX);
                 assert(imageIndex >= 0 && imageIndex < windowWidth * windowHeight);

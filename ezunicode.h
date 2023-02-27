@@ -26,6 +26,7 @@
 
 #define ezu_min(a, b) (((a) < (b)) ? (a) : (b))
 #define ezu_max(a, b) (((a) > (b)) ? (a) : (b))
+#define ezu_arrayCount(x) (intptr_t)(sizeof((x)[0]) / sizeof(x))
 
 //
 // SECTION stb truetype (header)
@@ -658,8 +659,8 @@ typedef struct ezu_Rect2i {
 } ezu_Rect2i;
 
 typedef struct ezu_Context {
-#ifdef ezu_USE_STB_TRUETYPE
-    stbtt_fontinfo stbttfont;
+#if defined(ezu_USE_STB_TRUETYPE) && defined(ezu_INCLUDE_FONT_DATA)
+    stbtt_fontinfo stbttfonts[  1    ];
 #endif
 } ezu_Context;
 
@@ -669,6 +670,7 @@ typedef struct ezu_Context {
 
 ezu_PUBLICAPI ezu_Context ezu_createContext(void);
 ezu_PUBLICAPI ezu_Rect2i ezu_drawGlyphUtf32(ezu_Context* ctx, uint8_t* imageBuffer, intptr_t imageWidth, intptr_t imageHeight, uint32_t glyphUtf32);
+ezu_PUBLICAPI intptr_t ezu_getFontIndexWithUtf32Glyph(uint32_t glyphUtf32);
 ezu_PUBLICAPI ezu_Rect2i ezu_clipRectToRect(ezu_Rect2i rect, ezu_Rect2i clip);
 
 #endif  // ezu_HEADER_FILE
@@ -19219,6 +19221,7 @@ uint8_t ezu_FontData_NotoSansRegular[] = {
     0x6e, 0x47, 0xfd, 0xd9, 0x5e, 0xf, 0x11, 0x61, 0x63, 0x7, 0x27, 0x22, 0x1a, 0x1b, 0x9, 0x8, 0x53, 0x19, 0x1d, 0x18, 0x26, 0x2a, 0x11, 0x1c, 0x21, 0xd, 0x65, 0x47, 0xfe, 0x18,
     0x1c, 0x12, 0x1, 0x73, 0x57, 0x6, 0x3d, 0x4a, 0x31, 0x3c, 0x14, 0x2b, 0x1d, 0x0, 0x0,
 };
+uint8_t* ezu_FontData_Array[] = {ezu_FontData_NotoSansRegular};
 #endif  // ezu_INCLUDE_FONT_DATA
 
 //
@@ -19228,22 +19231,98 @@ uint8_t ezu_FontData_NotoSansRegular[] = {
 ezu_PUBLICAPI ezu_Context
 ezu_createContext(void) {
     ezu_Context ctx = {};
-#ifdef ezu_USE_STB_TRUETYPE
-    ezu_assert(stbtt_InitFont(&ctx.stbttfont, ezu_FontData_NotoSansRegular, 0));
+#if defined(ezu_USE_STB_TRUETYPE) && defined(ezu_INCLUDE_FONT_DATA)
+    for (intptr_t ind = 0; ind < ezu_arrayCount(ezu_FontData_Array); ind++) {
+        ezu_assert(stbtt_InitFont(ctx.stbttfonts + ind, ezu_FontData_Array[ind], 0));
+    }
 #endif
     return ctx;
 }
 
 ezu_PUBLICAPI ezu_Rect2i
 ezu_drawGlyphUtf32(ezu_Context* ctx, uint8_t* imageBuffer, intptr_t imageWidth, intptr_t imageHeight, uint32_t glyphUtf32) {
-    float scale = stbtt_ScaleForPixelHeight(&ctx->stbttfont, 200);
-    int   x0, y0, x1, y1;
-    stbtt_GetCodepointBitmapBox(&ctx->stbttfont, glyphUtf32, scale, scale, &x0, &y0, &x1, &y1);
+#if defined(ezu_USE_STB_TRUETYPE) && defined(ezu_INCLUDE_FONT_DATA)
+    intptr_t fontIndex = ezu_getFontIndexWithUtf32Glyph(glyphUtf32);
+    // TODO(khvorov) What if the font isn't found?
+    if (fontIndex == -1) {
+        fontIndex = 0;
+    }
+    stbtt_fontinfo* font = ctx->stbttfonts + fontIndex;
+    float           scale = stbtt_ScaleForPixelHeight(font, 200);
+    int             x0, y0, x1, y1;
+    stbtt_GetCodepointBitmapBox(font, glyphUtf32, scale, scale, &x0, &y0, &x1, &y1);
     intptr_t glyphWidth = ezu_min(x1 - x0, imageWidth);
     intptr_t glyphHeight = ezu_min(y1 - y0, imageHeight);
-    stbtt_MakeCodepointBitmap(&ctx->stbttfont, (unsigned char*)imageBuffer, glyphWidth, glyphHeight, imageWidth, scale, scale, glyphUtf32);
+    stbtt_MakeCodepointBitmap(font, (unsigned char*)imageBuffer, glyphWidth, glyphHeight, imageWidth, scale, scale, glyphUtf32);
     ezu_Rect2i result = {0, 0, glyphWidth, glyphHeight};
     return result;
+#endif
+}
+
+ezu_PUBLICAPI intptr_t
+ezu_getFontIndexWithUtf32Glyph(uint32_t glyphUtf32) {
+#ifdef ezu_INCLUDE_FONT_DATA
+    if (glyphUtf32 >= 0 && glyphUtf32 <= 0) {return 0;}
+    if (glyphUtf32 >= 13 && glyphUtf32 <= 13) {return 0;}
+    if (glyphUtf32 >= 32 && glyphUtf32 <= 126) {return 0;}
+    if (glyphUtf32 >= 160 && glyphUtf32 <= 887) {return 0;}
+    if (glyphUtf32 >= 890 && glyphUtf32 <= 895) {return 0;}
+    if (glyphUtf32 >= 900 && glyphUtf32 <= 906) {return 0;}
+    if (glyphUtf32 >= 908 && glyphUtf32 <= 908) {return 0;}
+    if (glyphUtf32 >= 910 && glyphUtf32 <= 929) {return 0;}
+    if (glyphUtf32 >= 931 && glyphUtf32 <= 993) {return 0;}
+    if (glyphUtf32 >= 1008 && glyphUtf32 <= 1327) {return 0;}
+    if (glyphUtf32 >= 2304 && glyphUtf32 <= 2431) {return 0;}
+    if (glyphUtf32 >= 6832 && glyphUtf32 <= 6848) {return 0;}
+    if (glyphUtf32 >= 7296 && glyphUtf32 <= 7304) {return 0;}
+    if (glyphUtf32 >= 7376 && glyphUtf32 <= 7414) {return 0;}
+    if (glyphUtf32 >= 7416 && glyphUtf32 <= 7417) {return 0;}
+    if (glyphUtf32 >= 7424 && glyphUtf32 <= 7673) {return 0;}
+    if (glyphUtf32 >= 7675 && glyphUtf32 <= 7957) {return 0;}
+    if (glyphUtf32 >= 7960 && glyphUtf32 <= 7965) {return 0;}
+    if (glyphUtf32 >= 7968 && glyphUtf32 <= 8005) {return 0;}
+    if (glyphUtf32 >= 8008 && glyphUtf32 <= 8013) {return 0;}
+    if (glyphUtf32 >= 8016 && glyphUtf32 <= 8023) {return 0;}
+    if (glyphUtf32 >= 8025 && glyphUtf32 <= 8025) {return 0;}
+    if (glyphUtf32 >= 8027 && glyphUtf32 <= 8027) {return 0;}
+    if (glyphUtf32 >= 8029 && glyphUtf32 <= 8029) {return 0;}
+    if (glyphUtf32 >= 8031 && glyphUtf32 <= 8061) {return 0;}
+    if (glyphUtf32 >= 8064 && glyphUtf32 <= 8116) {return 0;}
+    if (glyphUtf32 >= 8118 && glyphUtf32 <= 8132) {return 0;}
+    if (glyphUtf32 >= 8134 && glyphUtf32 <= 8147) {return 0;}
+    if (glyphUtf32 >= 8150 && glyphUtf32 <= 8155) {return 0;}
+    if (glyphUtf32 >= 8157 && glyphUtf32 <= 8175) {return 0;}
+    if (glyphUtf32 >= 8178 && glyphUtf32 <= 8180) {return 0;}
+    if (glyphUtf32 >= 8182 && glyphUtf32 <= 8190) {return 0;}
+    if (glyphUtf32 >= 8192 && glyphUtf32 <= 8292) {return 0;}
+    if (glyphUtf32 >= 8294 && glyphUtf32 <= 8305) {return 0;}
+    if (glyphUtf32 >= 8308 && glyphUtf32 <= 8334) {return 0;}
+    if (glyphUtf32 >= 8336 && glyphUtf32 <= 8348) {return 0;}
+    if (glyphUtf32 >= 8352 && glyphUtf32 <= 8383) {return 0;}
+    if (glyphUtf32 >= 8432 && glyphUtf32 <= 8432) {return 0;}
+    if (glyphUtf32 >= 8448 && glyphUtf32 <= 8543) {return 0;}
+    if (glyphUtf32 >= 8580 && glyphUtf32 <= 8580) {return 0;}
+    if (glyphUtf32 >= 8585 && glyphUtf32 <= 8585) {return 0;}
+    if (glyphUtf32 >= 8722 && glyphUtf32 <= 8722) {return 0;}
+    if (glyphUtf32 >= 8725 && glyphUtf32 <= 8725) {return 0;}
+    if (glyphUtf32 >= 9676 && glyphUtf32 <= 9676) {return 0;}
+    if (glyphUtf32 >= 11360 && glyphUtf32 <= 11391) {return 0;}
+    if (glyphUtf32 >= 11744 && glyphUtf32 <= 11858) {return 0;}
+    if (glyphUtf32 >= 42560 && glyphUtf32 <= 42655) {return 0;}
+    if (glyphUtf32 >= 42752 && glyphUtf32 <= 42943) {return 0;}
+    if (glyphUtf32 >= 42946 && glyphUtf32 <= 42954) {return 0;}
+    if (glyphUtf32 >= 42997 && glyphUtf32 <= 43007) {return 0;}
+    if (glyphUtf32 >= 43056 && glyphUtf32 <= 43065) {return 0;}
+    if (glyphUtf32 >= 43232 && glyphUtf32 <= 43263) {return 0;}
+    if (glyphUtf32 >= 43310 && glyphUtf32 <= 43310) {return 0;}
+    if (glyphUtf32 >= 43824 && glyphUtf32 <= 43883) {return 0;}
+    if (glyphUtf32 >= 64256 && glyphUtf32 <= 64262) {return 0;}
+    if (glyphUtf32 >= 65024 && glyphUtf32 <= 65024) {return 0;}
+    if (glyphUtf32 >= 65056 && glyphUtf32 <= 65071) {return 0;}
+    if (glyphUtf32 >= 65279 && glyphUtf32 <= 65279) {return 0;}
+    if (glyphUtf32 >= 65532 && glyphUtf32 <= 65533) {return 0;}
+#endif
+    return -1;
 }
 
 ezu_PUBLICAPI ezu_Rect2i

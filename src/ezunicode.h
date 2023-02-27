@@ -26,6 +26,7 @@
 
 #define ezu_min(a, b) (((a) < (b)) ? (a) : (b))
 #define ezu_max(a, b) (((a) > (b)) ? (a) : (b))
+#define ezu_arrayCount(x) (intptr_t)(sizeof((x)[0]) / sizeof(x))
 
 //
 // SECTION stb truetype (header)
@@ -65,8 +66,9 @@ typedef struct ezu_Rect2i {
 } ezu_Rect2i;
 
 typedef struct ezu_Context {
-#ifdef ezu_USE_STB_TRUETYPE
-    stbtt_fontinfo stbttfont;
+#if defined(ezu_USE_STB_TRUETYPE) && defined(ezu_INCLUDE_FONT_DATA)
+    stbtt_fontinfo stbttfonts[  // @fontcount
+    ];
 #endif
 } ezu_Context;
 
@@ -91,22 +93,40 @@ typedef struct ezu_Context {
 ezu_PUBLICAPI ezu_Context
 ezu_createContext(void) {
     ezu_Context ctx = {};
-#ifdef ezu_USE_STB_TRUETYPE
-    ezu_assert(stbtt_InitFont(&ctx.stbttfont, ezu_FontData_NotoSansRegular, 0));
+#if defined(ezu_USE_STB_TRUETYPE) && defined(ezu_INCLUDE_FONT_DATA)
+    for (intptr_t ind = 0; ind < ezu_arrayCount(ezu_FontData_Array); ind++) {
+        ezu_assert(stbtt_InitFont(ctx.stbttfonts + ind, ezu_FontData_Array[ind], 0));
+    }
 #endif
     return ctx;
 }
 
 ezu_PUBLICAPI ezu_Rect2i
 ezu_drawGlyphUtf32(ezu_Context* ctx, uint8_t* imageBuffer, intptr_t imageWidth, intptr_t imageHeight, uint32_t glyphUtf32) {
-    float scale = stbtt_ScaleForPixelHeight(&ctx->stbttfont, 200);
-    int   x0, y0, x1, y1;
-    stbtt_GetCodepointBitmapBox(&ctx->stbttfont, glyphUtf32, scale, scale, &x0, &y0, &x1, &y1);
+#if defined(ezu_USE_STB_TRUETYPE) && defined(ezu_INCLUDE_FONT_DATA)
+    intptr_t fontIndex = ezu_getFontIndexWithUtf32Glyph(glyphUtf32);
+    // TODO(khvorov) What if the font isn't found?
+    if (fontIndex == -1) {
+        fontIndex = 0;
+    }
+    stbtt_fontinfo* font = ctx->stbttfonts + fontIndex;
+    float           scale = stbtt_ScaleForPixelHeight(font, 200);
+    int             x0, y0, x1, y1;
+    stbtt_GetCodepointBitmapBox(font, glyphUtf32, scale, scale, &x0, &y0, &x1, &y1);
     intptr_t glyphWidth = ezu_min(x1 - x0, imageWidth);
     intptr_t glyphHeight = ezu_min(y1 - y0, imageHeight);
-    stbtt_MakeCodepointBitmap(&ctx->stbttfont, (unsigned char*)imageBuffer, glyphWidth, glyphHeight, imageWidth, scale, scale, glyphUtf32);
+    stbtt_MakeCodepointBitmap(font, (unsigned char*)imageBuffer, glyphWidth, glyphHeight, imageWidth, scale, scale, glyphUtf32);
     ezu_Rect2i result = {0, 0, glyphWidth, glyphHeight};
     return result;
+#endif
+}
+
+ezu_PUBLICAPI intptr_t
+ezu_getFontIndexWithUtf32Glyph(uint32_t glyphUtf32) {
+#ifdef ezu_INCLUDE_FONT_DATA
+// @getfontindex
+#endif
+    return -1;
 }
 
 ezu_PUBLICAPI ezu_Rect2i

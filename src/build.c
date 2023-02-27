@@ -5,9 +5,14 @@
 #define assert(x) prb_assert(x)
 #define function static
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STBTT_assert(x) assert(x)
+#include "stb_truetype.h"
+
 typedef prb_Str   Str;
 typedef prb_Arena Arena;
 typedef int32_t   i32;
+typedef uint32_t  u32;
 typedef uint8_t   u8;
 typedef intptr_t  isize;
 
@@ -28,7 +33,7 @@ main() {
 
     // NOTE(khvorov) Stb truetype
     Str stbttheader = {};
-    Str stbttbody = {};    
+    Str stbttbody = {};
     {
         Str            stbttFileContent = readFile(arena, prb_pathJoin(arena, srcDir, STR("stb_truetype.h")));
         prb_StrScanner stbttScanner = prb_createStrScanner(stbttFileContent);
@@ -44,6 +49,8 @@ main() {
 
     // NOTE(khvorov) Font data
     Str fontData = {};
+    Str getFontIndexBody = {};
+    isize fontCount = 0;
     {
         Str* allTTFFileContents = 0;
         Str* allFontIds = 0;
@@ -72,6 +79,7 @@ main() {
         }
 
         assert(arrlen(allTTFFileContents) == arrlen(allFontIds));
+        fontCount = arrlen(allTTFFileContents);
 
         {
             prb_GrowingStr gstr = prb_beginStr(arena);
@@ -91,9 +99,43 @@ main() {
                         prb_addStrSegment(&gstr, " ");
                     }
                 }
-                prb_addStrSegment(&gstr, "};");
+                prb_addStrSegment(&gstr, "};\n");
             }
+
+            prb_addStrSegment(&gstr, "uint8_t* ezu_FontData_Array[] = {");
+            for (i32 ind = 0; ind < arrlen(allFontIds); ind++) {
+                Str fontid = allFontIds[ind];
+                prb_addStrSegment(&gstr, "ezu_FontData_%.*s", LIT(fontid));
+                if (ind < arrlen(allFontIds) - 1) {
+                    prb_addStrSegment(&gstr, ", ");
+                }
+            }
+            prb_addStrSegment(&gstr, "};\n");
+
             fontData = prb_endStr(&gstr);
+        }
+
+        {
+            prb_GrowingStr gstr = prb_beginStr(arena);
+            for (i32 ind = 0; ind < arrlen(allFontIds); ind++) {
+                Str            data = allTTFFileContents[ind];
+                stbtt_fontinfo info = {};
+                assert(stbtt_InitFont(&info, (unsigned char*)data.ptr, 0));
+
+                u32 lastStreakStart = 0;
+                bool currentlyInStreak = stbtt_FindGlyphIndex(&info, 0) != 0;
+                for (u32 glyph = 1; glyph <= 0x0010FFFF; glyph++) {
+                    int glyphIndex = stbtt_FindGlyphIndex(&info, glyph);
+                    if (glyphIndex == 0 && currentlyInStreak) {
+                        currentlyInStreak = false;
+                        prb_addStrSegment(&gstr, "    if (glyphUtf32 >= %d && glyphUtf32 <= %d) {return %d;}\n", lastStreakStart, glyph - 1, (int)ind);
+                    } else if (glyphIndex != 0 && !currentlyInStreak) {
+                        currentlyInStreak = true;
+                        lastStreakStart = glyph;
+                    }
+                }
+            }
+            getFontIndexBody = prb_endStr(&gstr);
         }
     }
 
@@ -134,9 +176,13 @@ main() {
             } else if (prb_streq(line, STR("stbttbody"))) {
                 prb_addStrSegment(&gstr, "%.*s\n", LIT(stbttbody));
             } else if (prb_streq(line, STR("fontdata"))) {
-                prb_addStrSegment(&gstr, "%.*s\n", LIT(fontData));
+                prb_addStrSegment(&gstr, "%.*s", LIT(fontData));
             } else if (prb_streq(line, STR("coreheader"))) {
                 prb_addStrSegment(&gstr, "%.*s", LIT(coreheader));
+            } else if (prb_streq(line, STR("getfontindex"))) {
+                prb_addStrSegment(&gstr, "%.*s", LIT(getFontIndexBody));
+            } else if (prb_streq(line, STR("fontcount"))) {
+                prb_addStrSegment(&gstr, "%d", (int)fontCount);
             } else {
                 assert(!"unrecognized");
             }
