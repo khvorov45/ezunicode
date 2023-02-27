@@ -25,6 +25,7 @@
 #endif
 
 #define ezu_min(a, b) (((a) < (b)) ? (a) : (b))
+#define ezu_max(a, b) (((a) > (b)) ? (a) : (b))
 
 typedef struct ezu_Rect2i {
     intptr_t left;
@@ -92,6 +93,18 @@ ezu_drawUnicode(uint8_t* imageBuffer, intptr_t imageWidth, intptr_t imageHeight)
     intptr_t glyphHeight = ezu_min(y1 - y0, imageHeight);
     stbtt_MakeCodepointBitmap(&font, (unsigned char*)imageBuffer, glyphWidth, glyphHeight, imageWidth, scale, scale, 'a');
     ezu_Rect2i result = {0, 0, glyphWidth, glyphHeight};
+    return result;
+}
+
+ezu_PUBLICAPI ezu_Rect2i
+ezu_clipRectToRect(ezu_Rect2i rect, ezu_Rect2i clip) {
+    intptr_t   left = ezu_max(rect.left, clip.left);
+    intptr_t   top = ezu_max(rect.top, clip.top);
+    intptr_t   right = ezu_min(rect.left + rect.width, clip.left + clip.width);
+    intptr_t   bottom = ezu_min(rect.top + rect.height, clip.top + clip.height);
+    intptr_t   width = right - left;
+    intptr_t   height = bottom - top;
+    ezu_Rect2i result = {left, top, width, height};
     return result;
 }
 

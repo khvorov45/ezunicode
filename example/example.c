@@ -220,6 +220,9 @@ main() {
     );
 
     XMapWindow(x11display, x11window);
+
+    isize cursorX = 0;
+    isize cursorY = 0;
     for (;;) {
         isize processedEventCount = 0;
         for (;;) {
@@ -235,17 +238,33 @@ main() {
 
                 switch (event.type) {
                     case ClientMessage: _exit(0); break;
+                    case MotionNotify:  {
+                        cursorX = event.xmotion.x;
+                        cursorY = event.xmotion.y;
+                    } break;
                 }
             }
         }
 
-        ezu_Rect2i glyphRect = ezu_drawUnicode(glyphAlphaBuffer, glyphAlphaBufferWidth, glyphAlphaBufferHeight);
-        for (isize glyphY = glyphRect.top; glyphY < glyphRect.top + glyphRect.height; glyphY++) {
-            for (isize glyphX = glyphRect.left; glyphX < glyphRect.left + glyphRect.width; glyphX++) {
+        memset(imageBuffer, 0, windowWidth * windowHeight * sizeof(*imageBuffer));
+
+        isize glyphImageLeft = cursorX;
+        isize glyphImageTop = cursorY;
+
+        ezu_Rect2i glyphAlphaBufferRect = {};
+        {
+            ezu_Rect2i full = ezu_drawUnicode(glyphAlphaBuffer, glyphAlphaBufferWidth, glyphAlphaBufferHeight);
+            ezu_Rect2i image = {-glyphImageLeft, -glyphImageTop, windowWidth, windowHeight};
+            glyphAlphaBufferRect = ezu_clipRectToRect(full, image);
+        }
+        for (isize glyphY = glyphAlphaBufferRect.top; glyphY < glyphAlphaBufferRect.top + glyphAlphaBufferRect.height; glyphY++) {
+            for (isize glyphX = glyphAlphaBufferRect.left; glyphX < glyphAlphaBufferRect.left + glyphAlphaBufferRect.width; glyphX++) {
                 isize glyphIndex = glyphY * glyphAlphaBufferWidth + glyphX;
+                assert(glyphIndex >= 0 && glyphIndex < glyphAlphaBufferWidth * glyphAlphaBufferHeight);
                 u8    glyphAlpha = glyphAlphaBuffer[glyphIndex];
 
-                isize imageIndex = glyphY * windowWidth + glyphX;
+                isize imageIndex = (glyphImageTop + glyphY) * windowWidth + (glyphImageLeft + glyphX);
+                assert(imageIndex >= 0 && imageIndex < windowWidth * windowHeight);
                 imageBuffer[imageIndex] = (glyphAlpha << 16) | (glyphAlpha << 8) | (glyphAlpha);
             }
         }
