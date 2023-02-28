@@ -124,11 +124,16 @@ main() {
 
                 u32 lastStreakStart = 0;
                 bool currentlyInStreak = stbtt_FindGlyphIndex(&info, 0) != 0;
+                isize rowCount = 0;
                 for (u32 glyph = 1; glyph <= 0x0010FFFF; glyph++) {
                     int glyphIndex = stbtt_FindGlyphIndex(&info, glyph);
                     if (glyphIndex == 0 && currentlyInStreak) {
                         currentlyInStreak = false;
-                        prb_addStrSegment(&gstr, "    if (glyphUtf32 >= %d && glyphUtf32 <= %d) {return %d;}\n", lastStreakStart, glyph - 1, (int)ind);
+                        if (rowCount > 0) {
+                            prb_addStrSegment(&gstr, "    ");
+                        }
+                        prb_addStrSegment(&gstr, "if (glyphUtf32 >= %d && glyphUtf32 <= %d) {return %d;}\n", lastStreakStart, glyph - 1, (int)ind);
+                        rowCount += 1;
                     } else if (glyphIndex != 0 && !currentlyInStreak) {
                         currentlyInStreak = true;
                         lastStreakStart = glyph;

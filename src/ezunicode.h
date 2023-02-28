@@ -32,7 +32,6 @@
 // SECTION stb truetype (header)
 //
 
-#ifdef ezu_USE_STB_TRUETYPE
 typedef uint8_t  stbtt_uint8;
 typedef int8_t   stbtt_int8;
 typedef uint16_t stbtt_uint16;
@@ -56,7 +55,6 @@ typedef int32_t  stbtt_int32;
 #define STBTT_memset memset
 
 // @stbttheader
-#endif  // ezu_USE_STB_TRUETYPE
 
 typedef struct ezu_Rect2i {
     intptr_t left;
@@ -65,11 +63,10 @@ typedef struct ezu_Rect2i {
     intptr_t height;
 } ezu_Rect2i;
 
+#define ezu_FONT_COUNT // @fontcount
+
 typedef struct ezu_Context {
-#if defined(ezu_USE_STB_TRUETYPE) && defined(ezu_INCLUDE_FONT_DATA)
-    stbtt_fontinfo stbttfonts[  // @fontcount
-    ];
-#endif
+    stbtt_fontinfo stbttfonts[ezu_FONT_COUNT];
 } ezu_Context;
 
 //
@@ -82,9 +79,7 @@ typedef struct ezu_Context {
 
 #ifdef ezu_IMPLEMENTATION
 
-#ifdef ezu_INCLUDE_FONT_DATA
 // @fontdata
-#endif  // ezu_INCLUDE_FONT_DATA
 
 //
 // SECTION Core (implementation)
@@ -93,17 +88,14 @@ typedef struct ezu_Context {
 ezu_PUBLICAPI ezu_Context
 ezu_createContext(void) {
     ezu_Context ctx = {};
-#if defined(ezu_USE_STB_TRUETYPE) && defined(ezu_INCLUDE_FONT_DATA)
-    for (intptr_t ind = 0; ind < ezu_arrayCount(ezu_FontData_Array); ind++) {
+    for (intptr_t ind = 0; ind < ezu_FONT_COUNT; ind++) {
         ezu_assert(stbtt_InitFont(ctx.stbttfonts + ind, ezu_FontData_Array[ind], 0));
     }
-#endif
     return ctx;
 }
 
 ezu_PUBLICAPI ezu_Rect2i
 ezu_drawGlyphUtf32(ezu_Context* ctx, uint8_t* imageBuffer, intptr_t imageWidth, intptr_t imageHeight, uint32_t glyphUtf32) {
-#if defined(ezu_USE_STB_TRUETYPE) && defined(ezu_INCLUDE_FONT_DATA)
     intptr_t fontIndex = ezu_getFontIndexWithUtf32Glyph(glyphUtf32);
     // TODO(khvorov) What if the font isn't found?
     if (fontIndex == -1) {
@@ -118,14 +110,11 @@ ezu_drawGlyphUtf32(ezu_Context* ctx, uint8_t* imageBuffer, intptr_t imageWidth, 
     stbtt_MakeCodepointBitmap(font, (unsigned char*)imageBuffer, glyphWidth, glyphHeight, imageWidth, scale, scale, glyphUtf32);
     ezu_Rect2i result = {0, 0, glyphWidth, glyphHeight};
     return result;
-#endif
 }
 
 ezu_PUBLICAPI intptr_t
 ezu_getFontIndexWithUtf32Glyph(uint32_t glyphUtf32) {
-#ifdef ezu_INCLUDE_FONT_DATA
-// @getfontindex
-#endif
+    // @getfontindex
     return -1;
 }
 
@@ -145,9 +134,7 @@ ezu_clipRectToRect(ezu_Rect2i rect, ezu_Rect2i clip) {
 // SECTION stb truetype (implementation)
 //
 
-#ifdef ezu_USE_STB_TRUETYPE
 // @stbttbody
-#endif  // ezu_USE_STB_TRUETYPE
 
 #endif  // ezu_IMPLEMENTATION
 

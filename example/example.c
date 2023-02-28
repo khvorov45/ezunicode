@@ -31,8 +31,6 @@
 
 #define ezu_IMPLEMENTATION
 #define ezu_PUBLICAPI static
-#define ezu_USE_STB_TRUETYPE
-#define ezu_INCLUDE_FONT_DATA
 #define ezu_assert(x) assert(x)
 #include "../ezunicode.h"
 
