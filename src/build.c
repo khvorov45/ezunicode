@@ -48,8 +48,8 @@ main() {
     }
 
     // NOTE(khvorov) Font data
-    Str fontData = {};
-    Str getFontIndexBody = {};
+    Str   fontData = {};
+    Str   getFontIndexBody = {};
     isize fontCount = 0;
     {
         Str* allTTFFileContents = 0;
@@ -58,7 +58,7 @@ main() {
             Str* entries = prb_getAllDirEntries(arena, srcDir, prb_Recursive_No);
             for (i32 entryIndex = 0; entryIndex < arrlen(entries); entryIndex++) {
                 Str entry = entries[entryIndex];
-                if (prb_strEndsWith(entry, STR(".ttf"))) {
+                if (prb_strEndsWith(entry, STR(".ttf")) || prb_strEndsWith(entry, STR(".otf"))) {
                     Str name = {};
                     {
                         Str            filename = prb_getLastEntryInPath(entry);
@@ -116,14 +116,16 @@ main() {
         }
 
         {
+            // TODO(khvorov) Prioritise fonts somehow?
             prb_GrowingStr gstr = prb_beginStr(arena);
             for (i32 ind = 0; ind < arrlen(allFontIds); ind++) {
-                Str            data = allTTFFileContents[ind];
+                Str data = allTTFFileContents[ind];
+                assert(stbtt_GetNumberOfFonts((const unsigned char*)data.ptr) == 1);
                 stbtt_fontinfo info = {};
                 assert(stbtt_InitFont(&info, (unsigned char*)data.ptr, 0));
 
-                u32 lastStreakStart = 0;
-                bool currentlyInStreak = stbtt_FindGlyphIndex(&info, 0) != 0;
+                u32   lastStreakStart = 0;
+                bool  currentlyInStreak = stbtt_FindGlyphIndex(&info, 0) != 0;
                 isize rowCount = 0;
                 for (u32 glyph = 1; glyph <= 0x0010FFFF; glyph++) {
                     int glyphIndex = stbtt_FindGlyphIndex(&info, glyph);

@@ -223,7 +223,7 @@ main() {
 
     isize cursorX = 0;
     isize cursorY = 0;
-    u32   glyphToDraw = 'a';
+    u32   glyphToDraw = 12390;
     for (;;) {
         isize processedEventCount = 0;
         for (;;) {
