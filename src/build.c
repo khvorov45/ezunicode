@@ -82,6 +82,7 @@ main() {
         fontCount = arrlen(allTTFFileContents);
 
         {
+            // TODO(khvorov) Compress the font data somehow probably
             prb_GrowingStr gstr = prb_beginStr(arena);
             for (i32 ind = 0; ind < arrlen(allFontIds); ind++) {
                 Str fontid = allFontIds[ind];
