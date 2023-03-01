@@ -87,18 +87,10 @@ main() {
             for (i32 ind = 0; ind < arrlen(allFontIds); ind++) {
                 Str fontid = allFontIds[ind];
                 Str data = allTTFFileContents[ind];
-                prb_addStrSegment(&gstr, "uint8_t ezu_FontData_%.*s[] = {\n    ", LIT(fontid));
+                prb_addStrSegment(&gstr, "uint8_t ezu_FontData_%.*s[] = {", LIT(fontid));
                 for (i32 byteIndex = 0; byteIndex < data.len; byteIndex++) {
                     u8 byte = (u8)data.ptr[byteIndex];
-                    prb_addStrSegment(&gstr, "0x%x,", byte);
-                    if ((byteIndex == data.len - 1) || (byteIndex > 0 && (byteIndex % 30 == 0))) {
-                        prb_addStrSegment(&gstr, "\n");
-                        if (byteIndex != data.len - 1) {
-                            prb_addStrSegment(&gstr, "    ");
-                        }
-                    } else {
-                        prb_addStrSegment(&gstr, " ");
-                    }
+                    prb_addStrSegment(&gstr, "%d,", byte);
                 }
                 prb_addStrSegment(&gstr, "};\n");
             }
