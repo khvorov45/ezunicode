@@ -69,6 +69,8 @@ typedef struct ezu_Context {
     stbtt_fontinfo stbttfonts[ezu_FONT_COUNT];
 } ezu_Context;
 
+// @fontids
+
 //
 // SECTION Core (header)
 //
@@ -95,13 +97,8 @@ ezu_createContext(void) {
 }
 
 ezu_PUBLICAPI ezu_Rect2i
-ezu_drawGlyphUtf32(ezu_Context* ctx, uint8_t* imageBuffer, intptr_t imageWidth, intptr_t imageHeight, uint32_t glyphUtf32) {
-    intptr_t fontIndex = ezu_getFontIndexWithUtf32Glyph(glyphUtf32);
-    // TODO(khvorov) What if the font isn't found?
-    if (fontIndex == -1) {
-        fontIndex = 0;
-    }
-    stbtt_fontinfo* font = ctx->stbttfonts + fontIndex;
+ezu_drawGlyphUtf32(ezu_Context* ctx, uint8_t* imageBuffer, intptr_t imageWidth, intptr_t imageHeight, ezu_FontID fontid, uint32_t glyphUtf32) {
+    stbtt_fontinfo* font = ctx->stbttfonts + fontid;
     float           scale = stbtt_ScaleForPixelHeight(font, 200);
     int             x0, y0, x1, y1;
     stbtt_GetCodepointBitmapBox(font, glyphUtf32, scale, scale, &x0, &y0, &x1, &y1);
@@ -112,10 +109,10 @@ ezu_drawGlyphUtf32(ezu_Context* ctx, uint8_t* imageBuffer, intptr_t imageWidth, 
     return result;
 }
 
-ezu_PUBLICAPI intptr_t
-ezu_getFontIndexWithUtf32Glyph(uint32_t glyphUtf32) {
-    // @getfontindex
-    return -1;
+ezu_PUBLICAPI bool
+ezu_fontIDHasUtf32Glyph(ezu_FontID fontid, uint32_t glyphUtf32) {
+    // @fontidbody
+    return false;
 }
 
 ezu_PUBLICAPI ezu_Rect2i

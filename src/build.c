@@ -49,11 +49,11 @@ main() {
 
     // NOTE(khvorov) Font data
     Str   fontData = {};
-    Str   getFontIndexBody = {};
+    Str   fontIDHasUtf32GlyphBody = {};
     isize fontCount = 0;
+    Str*  allFontIds = 0;
     {
         Str* allTTFFileContents = 0;
-        Str* allFontIds = 0;
         {
             Str* entries = prb_getAllDirEntries(arena, srcDir, prb_Recursive_No);
             for (i32 entryIndex = 0; entryIndex < arrlen(entries); entryIndex++) {
@@ -111,7 +111,11 @@ main() {
         {
             // TODO(khvorov) Prioritise fonts somehow?
             prb_GrowingStr gstr = prb_beginStr(arena);
+            prb_addStrSegment(&gstr, "switch (fontid) {\n");
             for (i32 ind = 0; ind < arrlen(allFontIds); ind++) {
+                Str fontid = allFontIds[ind];
+                prb_addStrSegment(&gstr, "    case ezu_FontID_%.*s:\n", LIT(fontid));
+
                 Str data = allTTFFileContents[ind];
                 assert(stbtt_GetNumberOfFonts((const unsigned char*)data.ptr) == 1);
                 stbtt_fontinfo info = {};
@@ -119,24 +123,34 @@ main() {
 
                 u32   lastStreakStart = 0;
                 bool  currentlyInStreak = stbtt_FindGlyphIndex(&info, 0) != 0;
-                isize rowCount = 0;
+                isize condCount = 0;
                 for (u32 glyph = 1; glyph <= 0x0010FFFF; glyph++) {
                     int glyphIndex = stbtt_FindGlyphIndex(&info, glyph);
                     if (glyphIndex == 0 && currentlyInStreak) {
                         currentlyInStreak = false;
-                        if (rowCount > 0) {
-                            prb_addStrSegment(&gstr, "    ");
-                        }
-                        prb_addStrSegment(&gstr, "if (glyphUtf32 >= %d && glyphUtf32 <= %d) {return %d;}\n", lastStreakStart, glyph - 1, (int)ind);
-                        rowCount += 1;
+                        prb_addStrSegment(&gstr, "        if (glyphUtf32 >= %d && glyphUtf32 <= %d) return true;\n", lastStreakStart, glyph - 1);
+                        condCount += 1;
                     } else if (glyphIndex != 0 && !currentlyInStreak) {
                         currentlyInStreak = true;
                         lastStreakStart = glyph;
                     }
                 }
+                prb_addStrSegment(&gstr, "        break;\n");
             }
-            getFontIndexBody = prb_endStr(&gstr);
+            prb_addStrSegment(&gstr, "    }\n");
+            fontIDHasUtf32GlyphBody = prb_endStr(&gstr);
         }
+    }
+
+    Str fontidEnum = {};
+    {
+        prb_GrowingStr gstr = prb_beginStr(arena);
+        prb_addStrSegment(&gstr, "typedef enum ezu_FontID {\n");
+        for (isize ind = 0; ind < arrlen(allFontIds); ind++) {
+            prb_addStrSegment(&gstr, "    ezu_FontID_%.*s,\n", LIT(allFontIds[ind]));
+        }
+        prb_addStrSegment(&gstr, "} ezu_FontID;\n");
+        fontidEnum = prb_endStr(&gstr);
     }
 
     Str ezunicodeMainFilePath = prb_pathJoin(arena, srcDir, STR("ezunicode.h"));
@@ -179,10 +193,12 @@ main() {
                 prb_addStrSegment(&gstr, "%.*s", LIT(fontData));
             } else if (prb_streq(line, STR("coreheader"))) {
                 prb_addStrSegment(&gstr, "%.*s", LIT(coreheader));
-            } else if (prb_streq(line, STR("getfontindex"))) {
-                prb_addStrSegment(&gstr, "%.*s", LIT(getFontIndexBody));
+            } else if (prb_streq(line, STR("fontidbody"))) {
+                prb_addStrSegment(&gstr, "%.*s", LIT(fontIDHasUtf32GlyphBody));
             } else if (prb_streq(line, STR("fontcount"))) {
                 prb_addStrSegment(&gstr, "%d", (int)fontCount);
+            } else if (prb_streq(line, STR("fontids"))) {
+                prb_addStrSegment(&gstr, "%.*s", LIT(fontidEnum));
             } else {
                 assert(!"unrecognized");
             }
