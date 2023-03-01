@@ -255,7 +255,7 @@ main() {
 
         ezu_Rect2i glyphAlphaBufferRect = {};
         {
-            ezu_Rect2i full = ezu_drawGlyphUtf32(&ezuctx, glyphAlphaBuffer, glyphAlphaBufferWidth, glyphAlphaBufferHeight, ezu_FontID_NotoSansRegular, glyphToDraw);
+            ezu_Rect2i full = ezu_drawGlyphUtf32(&ezuctx, glyphAlphaBuffer, glyphAlphaBufferWidth, glyphAlphaBufferHeight, ezu_FontID_NotoSansJPRegular, glyphToDraw);
             ezu_Rect2i image = {-glyphImageLeft, -glyphImageTop, windowWidth, windowHeight};
             glyphAlphaBufferRect = ezu_clipRectToRect(full, image);
         }
